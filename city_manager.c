@@ -29,7 +29,7 @@ Role current_role = ROLE_UNKNOWN;
 char current_user[MAX_STR] = "unknown";
 char district[MAX_STR] = "";
 
-// Helper: Convert permission bits to string (e.g., rw-rw-r--)
+// Helper: Convert permission bits to string
 void perms_to_string(mode_t mode, char *str) {
     strcpy(str, "---------");
     if (mode & S_IRUSR) str[0] = 'r';
@@ -447,7 +447,7 @@ int main(int argc, char *argv[]) {
     } else if (strcmp(cmd, "--list") == 0) {
         do_list();
     } 
-    else if (strcmp(cmd, "--view") == 0) { // <--- ADD THIS BLOCK
+    else if (strcmp(cmd, "--view") == 0) {
         if (cmd_index + 2 < argc) {
             do_view(atoi(argv[cmd_index + 2]));
         } else {
@@ -466,7 +466,7 @@ int main(int argc, char *argv[]) {
             printf("Error: Missing filter condition\n");
         }
     }
-    else if (strcmp(cmd, "--update_threshold") == 0) { // <--- ADD THIS BLOCK
+    else if (strcmp(cmd, "--update_threshold") == 0) {
         if (cmd_index + 2 < argc) {
             do_update_threshold(atoi(argv[cmd_index + 2]));
         }

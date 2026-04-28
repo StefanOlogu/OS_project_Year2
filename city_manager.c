@@ -441,6 +441,8 @@ void remove_district() {
         return;
     }
 
+     log_operation("remove_district");
+
     // char file_path[512];
     // snprintf(file_path, sizeof(file_path), "%s/reports.dat", district);
     // unlink(file_path);
@@ -478,7 +480,7 @@ void remove_district() {
 
         execlp("rm", "rm", "-rf", district, NULL);
 
-        //never reached if execlp() succeded
+        //never reached if execlp() succeeded
         perror("Error: execlp failed");
         exit(1);
     }

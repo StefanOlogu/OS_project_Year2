@@ -7,6 +7,7 @@
 #include <sys/types.h>
 #include <time.h>
 #include <dirent.h>
+#include <sys/wait.h>
 
 #define MAX_STR 64
 #define DESC_STR 256
@@ -200,7 +201,7 @@ void do_remove(int target_id) {
         printf("Error: Only managers can remove reports.\n");
         return;
     }
-    log_operation("remove");
+    log_operation("remove_report");
 
     char path[512];
     snprintf(path, sizeof(path), "%s/reports.dat", district);
@@ -408,6 +409,91 @@ void check_dangling_symlinks() {
     closedir(dir);
 }
 
+void remove_district() {
+    // if (current_role != ROLE_MANAGER) {
+    //     printf("Error: Only managers can remove districts.\n");
+    //     return;
+    // }
+    //
+    // log_operation("remove_district");
+    // char path[512];
+    // snprintf(path, sizeof(path), "%s/reports.dat", district);
+    //
+    // int fd = open(path, O_RDWR);
+    // if (fd == -1) return;
+    //
+    // struct stat st;
+    // fstat(fd, &st);
+    // int total_records = st.st_size / sizeof(Report);
+    //
+    // Report r;
+    //
+    // for (int i = 0; i < total_records; i++) {
+    //     read(fd, &r, sizeof(Report));
+    //     do_remove(r.id);
+    // }
+    //
+    // rmdir(district);
+    // close(fd);
+
+    if (current_role != ROLE_MANAGER) {
+        printf("Error: Only managers can remove districts.\n");
+        return;
+    }
+
+    // char file_path[512];
+    // snprintf(file_path, sizeof(file_path), "%s/reports.dat", district);
+    // unlink(file_path);
+    //
+    // snprintf(file_path, sizeof(file_path), "%s/district.cfg", district);
+    // unlink(file_path);
+    //
+    // snprintf(file_path, sizeof(file_path), "%s/logged_district", district);
+    // unlink(file_path);
+    //
+    // if (rmdir(district) == 0) {
+    //     printf("District '%s' successfully removed.\n", district);
+    // } else {
+    //     printf("Error: Could not remove district '%s'. It may not exist.\n", district);
+    // }
+    //
+    // char sym_path[512];
+    // snprintf(sym_path, sizeof(sym_path), "active_reports-%s", district);
+    // unlink(sym_path);
+
+    char sym_path[512];
+    snprintf(sym_path, sizeof(sym_path), "%s/districts.dat", district);
+    unlink(sym_path);
+
+    pid_t pid = fork();
+    if (pid < 0) {
+        printf("Error: Failed to create child process\n");
+        return;
+    }
+    else if (pid == 0) {    //child process
+        if (strlen(district) == 0 || strcmp(district, "/") == 0 || strcmp(district, ".") == 0 || strchr(district, '/') != NULL) {
+            printf("Safety abort: Invalid district name for deletion.\n");
+            exit(1);
+        }
+
+        execlp("rm", "rm", "-rf", district, NULL);
+
+        //never reached if execlp() succeded
+        perror("Error: execlp failed");
+        exit(1);
+    }
+    else {  //parent process
+        int status;
+        waitpid(pid, &status, 0);
+
+        if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {
+            printf("District '%s' and all its contents successfully removed.\n", district);
+        } else {
+            printf("Error: Failed to remove district '%s'.\n", district);
+        }
+    }
+}
+
 int main(int argc, char *argv[]) {
     if (argc < 4) {
         printf("Usage: %s --role <role> --user <user> --<command> <district_id> [args...]\n", argv[0]);
@@ -465,6 +551,9 @@ int main(int argc, char *argv[]) {
         else{
             printf("Error: Missing filter condition\n");
         }
+    }
+    else if (strcmp(cmd, "--remove_district") == 0) {
+        remove_district();
     }
     else if (strcmp(cmd, "--update_threshold") == 0) {
         if (cmd_index + 2 < argc) {

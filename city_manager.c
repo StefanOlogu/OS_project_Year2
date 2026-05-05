@@ -166,6 +166,48 @@ void do_add() {
         close(fd);
         chmod(path, 0664); // Ensure 664 per spec
     }
+
+
+    int monitor_informed = 0; // Flag to track success
+    int pid_fd = open(".monitor_pid", O_RDONLY);
+
+    if (pid_fd != -1) {
+        char pid_buf[32];
+        memset(pid_buf, 0, sizeof(pid_buf));
+        int bytes_read = read(pid_fd, pid_buf, sizeof(pid_buf) - 1);
+        close(pid_fd);
+
+        if (bytes_read > 0) {
+            pid_t monitor_pid = atoi(pid_buf);
+
+            // Try to send SIGUSR1. kill() returns 0 on success, -1 on failure.
+            if (monitor_pid > 0 && kill(monitor_pid, SIGUSR1) == 0) {
+                monitor_informed = 1;
+            }
+        }
+    }
+
+    // Write the acknowledgment to the logged_district file
+    char log_path[512];
+    snprintf(log_path, sizeof(log_path), "%s/logged_district", district);
+
+    // Check if we have permission to write to the log (Inspector check)
+    struct stat log_st;
+    if (stat(log_path, &log_st) == 0 && has_permission(log_st.st_mode, 0, 1)) {
+        int log_fd = open(log_path, O_WRONLY | O_APPEND);
+        if (log_fd != -1) {
+            char notification_msg[256];
+            if (monitor_informed) {
+                snprintf(notification_msg, sizeof(notification_msg),
+                         "Notification Status: Monitor successfully informed of new report (SIGUSR1).\n");
+            } else {
+                snprintf(notification_msg, sizeof(notification_msg),
+                         "Notification Status: Monitor could NOT be informed (no .monitor_pid or signal failed).\n");
+            }
+            write(log_fd, notification_msg, strlen(notification_msg));
+            close(log_fd);
+        }
+    }
 }
 
 // Command: list
@@ -463,9 +505,15 @@ void remove_district() {
     // snprintf(sym_path, sizeof(sym_path), "active_reports-%s", district);
     // unlink(sym_path);
 
+
     char sym_path[512];
-    snprintf(sym_path, sizeof(sym_path), "%s/districts.dat", district);
-    unlink(sym_path);
+    snprintf(sym_path, sizeof(sym_path), "active_reports-%s", district);
+    
+    if (unlink(sym_path) == 0) {
+        printf("Symlink '%s' removed.\n", sym_path);
+    } else {
+        perror("Warning: Could not remove symlink");
+    }
 
     pid_t pid = fork();
     if (pid < 0) {
@@ -488,6 +536,7 @@ void remove_district() {
         int status;
         waitpid(pid, &status, 0);
 
+        //check if the deletion was successful
         if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {
             printf("District '%s' and all its contents successfully removed.\n", district);
         } else {

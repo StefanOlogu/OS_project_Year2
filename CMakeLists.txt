@@ -4,4 +4,5 @@ project(OS_project_Year2 C)
 set(CMAKE_C_STANDARD 11)
 
 add_executable(OS_project_Year2
-        city_manager.c)
+        city_manager.c
+        monitor_reports.c)
